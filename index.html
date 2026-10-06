@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>机器学习全链路讲解 · 重点：震荡行情的判断（DD 分布差异法）</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#111827; --card:#161d2b; --card2:#1b2436;
+    --line:#2a3648; --txt:#e6edf3; --sub:#9aa7b8; --mut:#6b7a8f;
+    --cyan:#39c5cf; --amber:#f0a832; --red:#ef5b64; --green:#4cc38a; --violet:#a78bfa;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;line-height:1.75}
+  code,kbd{font-family:Consolas,Menlo,monospace;background:#0a0f16;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:.88em;color:var(--cyan)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ---------- nav ---------- */
+  nav{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:18px;height:56px;flex-wrap:wrap}
+  nav .logo{font-weight:700;color:var(--cyan);letter-spacing:1px;white-space:nowrap}
+  nav a{color:var(--sub);text-decoration:none;font-size:14px;white-space:nowrap}
+  nav a:hover{color:var(--cyan)}
+  nav .hot{color:var(--amber);font-weight:600}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:72px 24px 56px;text-align:center;background:radial-gradient(900px 400px at 50% -80px,rgba(57,197,207,.14),transparent),var(--bg)}
+  .tag{display:inline-block;border:1px solid var(--cyan);color:var(--cyan);border-radius:999px;padding:3px 16px;font-size:13px;letter-spacing:2px;margin-bottom:18px}
+  h1{font-size:34px;line-height:1.35;margin-bottom:14px}
+  h1 .em{color:var(--amber)}
+  .hero p{color:var(--sub);max-width:760px;margin:0 auto}
+  .hero .meta{margin-top:22px;color:var(--mut);font-size:13px}
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0}
+  section.alt{background:var(--bg2)}
+  h2{font-size:26px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+  h2 .no{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:38px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--cyan);font-size:17px}
+  h2.hot .no{color:var(--amber);border-color:var(--amber)}
+  .lead{color:var(--sub);margin-bottom:28px;max-width:860px}
+  h3{font-size:19px;margin:34px 0 12px;color:var(--txt)}
+  h3 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--cyan);margin-right:9px;vertical-align:middle}
+  h3.hot .dot{background:var(--amber)}
+  p{margin-bottom:12px;color:#c8d3e0}
+  ul,ol{margin:0 0 14px 22px;color:#c8d3e0}
+  li{margin-bottom:7px}
+  strong{color:var(--txt)}
+  .hl{color:var(--amber);font-weight:600}
+  .hlc{color:var(--cyan);font-weight:600}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:860px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  /* ---------- pipeline ---------- */
+  .pipe{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:10px}
+  @media(max-width:960px){.pipe{grid-template-columns:repeat(4,1fr)}}
+  @media(max-width:640px){.pipe{grid-template-columns:repeat(2,1fr)}}
+  .step{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px 12px;position:relative;transition:.2s}
+  .step:hover{border-color:var(--cyan);transform:translateY(-3px)}
+  .step b{display:block;color:var(--cyan);font-size:13px;margin-bottom:6px}
+  .step span{font-size:14px;font-weight:600}
+  .step small{display:block;color:var(--mut);font-size:12px;margin-top:5px;line-height:1.5}
+  .loop{margin-top:26px;text-align:center}
+  .loop .bar{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;background:linear-gradient(90deg,rgba(57,197,207,.12),rgba(240,168,50,.12));border:1px dashed var(--line);border-radius:999px;padding:10px 22px;color:var(--sub);font-size:14px}
+  .loop .bar b{color:var(--txt)}
+  .loop .arrow{color:var(--mut)}
+
+  /* ---------- algo map ---------- */
+  .school{display:flex;flex-direction:column;gap:12px}
+  .school .head{border-radius:12px;padding:12px 16px;font-weight:700;text-align:center;letter-spacing:1px}
+  .school.s1 .head{background:rgba(57,197,207,.13);color:var(--cyan);border:1px solid rgba(57,197,207,.4)}
+  .school.s2 .head{background:rgba(167,139,250,.13);color:var(--violet);border:1px solid rgba(167,139,250,.4)}
+  .school.s3 .head{background:rgba(240,168,50,.13);color:var(--amber);border:1px solid rgba(240,168,50,.4)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:13px;color:#c8d3e0}
+  .use{font-size:13px;color:var(--sub);border-top:1px dashed var(--line);padding-top:10px;margin-top:2px}
+  .use b{color:var(--txt)}
+
+  /* ---------- DD charts ---------- */
+  .fig{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0}
+  .fig svg{width:100%;height:auto;display:block}
+  .fig .cap{color:var(--mut);font-size:13px;margin-top:10px;text-align:center}
+  .fig .cap b{color:var(--sub)}
+  .annot{font-size:12.5px}
+  .annot .a1{fill:var(--amber)} .annot .a2{fill:var(--cyan)} .annot .a3{fill:var(--sub)}
+
+  /* ---------- rule table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--card);border-radius:12px;overflow:hidden}
+  th,td{border:1px solid var(--line);padding:11px 14px;text-align:left;vertical-align:top}
+  th{background:var(--card2);color:var(--cyan);font-weight:600;white-space:nowrap}
+  tr.hotrow td{background:rgba(240,168,50,.07)}
+  td .pill{display:inline-block;border-radius:6px;padding:1px 9px;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .pill.osc{background:rgba(57,197,207,.15);color:var(--cyan);border:1px solid rgba(57,197,207,.45)}
+  .pill.trend{background:rgba(240,168,50,.15);color:var(--amber);border:1px solid rgba(240,168,50,.45)}
+  .pill.mid{background:rgba(155,167,184,.12);color:var(--sub);border:1px solid var(--line)}
+
+  /* ---------- demo ---------- */
+  .demo{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid rgba(240,168,50,.35);border-radius:16px;padding:22px;margin-top:20px}
+  .demo .ctrl{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:14px}
+  .demo input[type=range]{flex:1;min-width:220px;accent-color:var(--amber);height:26px}
+  .demo .ends{display:flex;justify-content:space-between;color:var(--mut);font-size:13px;margin-top:-6px;margin-bottom:12px}
+  .btn{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 18px;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--cyan);color:var(--cyan)}
+  .readout{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  @media(max-width:760px){.readout{grid-template-columns:repeat(2,1fr)}}
+  .ro{background:#0a0f16;border:1px solid var(--line);border-radius:10px;padding:10px 14px;text-align:center}
+  .ro .v{font-size:22px;font-weight:700}
+  .ro .l{font-size:12px;color:var(--mut)}
+  .ro .v.osc{color:var(--cyan)} .ro .v.trend{color:var(--amber)} .ro .v.mid{color:var(--sub)}
+  canvas#demoCv{width:100%;height:auto;display:block;background:#0a0f16;border:1px solid var(--line);border-radius:10px}
+  .demo .hint{color:var(--mut);font-size:13px;margin-top:10px}
+
+  .callout{border-left:4px solid var(--amber);background:rgba(240,168,50,.08);border-radius:0 10px 10px 0;padding:14px 18px;margin:16px 0;color:#e8ddc4;font-size:14.5px}
+  .callout.c{border-color:var(--cyan);background:rgba(57,197,207,.08);color:#d2ecee}
+  .callout b{color:var(--txt)}
+
+  footer{border-top:1px solid var(--line);padding:26px 24px;text-align:center;color:var(--mut);font-size:13px}
+
+  /* ---------- 课程详解 accordion ---------- */
+  h4{font-size:15.5px;color:var(--cyan);margin:16px 0 6px}
+  details.lecture{border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:14px;overflow:hidden}
+  details.lecture summary{cursor:pointer;padding:15px 22px;font-weight:700;font-size:16.5px;list-style:none;display:flex;gap:12px;align-items:center;user-select:none}
+  details.lecture summary::-webkit-details-marker{display:none}
+  details.lecture summary .no{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;border-radius:9px;background:var(--card2);border:1px solid var(--line);color:var(--cyan);font-size:14.5px;font-weight:700}
+  details.lecture summary .sub{color:var(--mut);font-weight:400;font-size:13px;margin-left:2px}
+  details.lecture summary::after{content:'▸';margin-left:auto;color:var(--mut);font-size:14px;transition:transform .2s}
+  details.lecture[open] summary::after{transform:rotate(90deg)}
+  details.lecture[open] summary{border-bottom:1px solid var(--line);color:var(--cyan)}
+  .acc-body{padding:6px 24px 20px}
+  .acc-body p{color:#c8d3e0}
+  .xref{display:inline-block;background:rgba(240,168,50,.12);border:1px dashed rgba(240,168,50,.5);color:var(--amber);border-radius:8px;padding:6px 14px;font-size:13.5px;margin:8px 0}
+  .booklist li{margin-bottom:10px}
+  .booklist b{color:var(--txt)}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="logo">ML · 量化全链路</span>
+  <a href="#pipeline">① 全链路规划</a>
+  <a href="#map">② 机器学习地图</a>
+  <a href="#course">③ 课程详解 · 11 讲</a>
+  <a href="#dd" class="hot">④ 震荡行情判断 ★</a>
+  <a href="#embed">⑤ 嵌入全链路</a>
+</div></nav>
+
+<header class="hero">
+  <span class="tag">机器学习 · 量化交易 · 实战讲解</span>
+  <h1>机器学习在量化中的全链路应用<br><span class="em">重点：震荡行情的判断用法 —— DD 分布差异法</span></h1>
+  <p>按「数据获取 → 自定义轴 → 数据标签 → 特征工程 → 模型训练与回测 → 模型组合 → 实盘推理」的全生产线路径讲解，
+     并围绕螺纹钢 RB99 的 30 分钟线与换手率线，讲透如何用分布差异（Data Difference, DD）识别震荡行情、指导策略开关。</p>
+  <div class="meta">案例数据：RB99 · 30m · 2019.1 – 2025.1 · 17,280 根K线 ｜ 换手率线：1m · 匹配 30m 时间线</div>
+</header>
+
+<!-- ==================== 1 全链路 ==================== -->
+<section id="pipeline"><div class="wrap">
+  <h2><span class="no">1</span>全链路规划（基于机器学习的技术路径）</h2>
+  <p class="lead">核心思想：<strong>打破「数学、计算机、金融」的学科壁垒</strong>，让「数据 → 标签 → 特征 → 模型 → 回测 → 实盘」的全流程形成闭环。整体统筹、分步实施，每一步都为下一步服务，而不是孤立地调包跑模型。</p>
+  <div class="pipe">
+    <div class="step"><b>Step 1</b><span>数据获取</span><small>行情 / 成交 / 持仓；紧接着做数据分析，摸清分布与质量</small></div>
+    <div class="step"><b>Step 2</b><span>自定义轴</span><small>构造研究坐标系：时间线（Time Line）、换手率线（Turnover Line）等</small></div>
+    <div class="step"><b>Step 3</b><span>数据标签</span><small>给每段行情打标签：趋势 / 震荡 / 过渡（可用 DD 自动打标）</small></div>
+    <div class="step"><b>Step 4</b><span>特征工程</span><small>提取因子；必要时数据降维（PCA / LDA 等）</small></div>
+    <div class="step"><b>Step 5</b><span>模型训练</span><small>历史回测 + 模型评估，样本内外双重验证</small></div>
+    <div class="step"><b>Step 6</b><span>模型组合</span><small>多模型集成，让「行情分类器」决定调用哪类子策略</small></div>
+    <div class="step"><b>Step 7</b><span>模型推理</span><small>实盘交易；推理结果回流，反哺标签与特征</small></div>
+  </div>
+  <div class="loop"><div class="bar">
+    <b>数据</b><span class="arrow">→</span><b>标签</b><span class="arrow">→</span><b>特征</b><span class="arrow">→</span><b>模型</b><span class="arrow">→</span><b>回测</b><span class="arrow">→</span><b>实盘</b><span class="arrow">↺ 闭环迭代</span>
+  </div></div>
+
+  <div class="callout c"><b>为什么全链路里必须有「震荡行情判断」这一环？</b><br>
+  绝大多数趋势跟踪策略的亏损不是来自趋势行情，而是来自震荡行情中的反复假突破、反复止损。把「当前是不是震荡市」作为全链路的基础开关（标签与特征），是机器学习在量化中最直接、性价比最高的落地方式之一。</div>
+</div></section>
+
+<!-- ==================== 2 算法地图 ==================== -->
+<section id="map" class="alt"><div class="wrap">
+  <h2><span class="no">2</span>机器学习算法地图（三大流派）</h2>
+  <p class="lead">量化建模不需要穷举所有算法，按流派理解其适用场景即可。其中「统计机器学习」与「概率图模型」是震荡/趋势识别这类结构判断问题的主力。</p>
+  <div class="grid3">
+    <div class="school s1">
+      <div class="head">统计机器学习</div>
+      <div class="chips">
+        <span class="chip">线性回归 / 多元线性回归</span><span class="chip">线性分类（LR / SVM）</span>
+        <span class="chip">决策树</span><span class="chip">随机森林</span><span class="chip">AdaBoost</span>
+        <span class="chip">GBDT</span><span class="chip">XGBoost</span>
+        <span class="chip">降维：PCA / KPCA / MDS / LDA</span>
+      </div>
+      <div class="use"><b>量化用途：</b>因子线性合成、震荡/趋势分类（树模型可输出特征重要性，便于解释行情为何被判定为震荡）、降维去噪。是本讲「行情状态分类」的主力工具。</div>
+    </div>
+    <div class="school s2">
+      <div class="head">深度学习</div>
+      <div class="chips">
+        <span class="chip">MLP</span><span class="chip">CNN</span><span class="chip">RNN</span>
+        <span class="chip">LSTM</span><span class="chip">VAE</span><span class="chip">GAN</span><span class="chip">强化学习</span>
+      </div>
+      <div class="use"><b>量化用途：</b>从原始K线/盘口序列中自动学特征（CNN）、记忆行情上下文（LSTM）、生成模拟行情做压力测试（GAN/VAE）。样本量足够时才建议上。</div>
+    </div>
+    <div class="school s3">
+      <div class="head">贝叶斯派 · 概率图模型</div>
+      <div class="chips">
+        <span class="chip">MLE 最大似然</span><span class="chip">MAP 最大后验</span><span class="chip">EM 算法</span>
+        <span class="chip">梯度法 / 牛顿法 / SMO</span>
+        <span class="chip">聚类：KMeans / DBSCAN / 谱聚类</span><span class="chip">高斯混合 GMM</span>
+        <span class="chip">HMM 隐马尔可夫</span><span class="chip">MEMM / CRF</span>
+        <span class="chip">卡尔曼滤波 / UKF / 粒子滤波</span>
+      </div>
+      <div class="use"><b>量化用途：</b>把行情看作「隐状态」序列：HMM/GMM 天然适合做「震荡态 ↔ 趋势态」的隐状态切换建模；卡尔曼族适合做趋势强度与噪声分离。</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ==================== 3 课程内容详解（11 讲） ==================== -->
+<section id="course"><div class="wrap">
+  <h2><span class="no">3</span>课程内容详解（全 11 讲大纲）</h2>
+  <p class="lead">按课程大纲逐讲展开。每一讲先给核心结论，再展开大纲中的每个知识点；与震荡行情 DD 判断直接相关的内容用 <span class="hl">参考框</span> 链接到本页第 ④ 部分。</p>
+
+  <details class="lecture" open>
+    <summary><span class="no">1</span>机器学习基础 <span class="sub">基础知识 · 模型类别 · 应用场景 · 在量化交易中的应用</span></summary>
+    <div class="acc-body">
+      <h4>1.1 机器学习的基础知识</h4>
+      <p>机器学习的本质是从历史数据中学习一个映射 <code>y = f(x) + ε</code>：输入特征 <code>x</code>（行情、因子、宏观变量），输出目标 <code>y</code>（涨跌幅、状态标签、成交概率），<code>ε</code> 是不可约噪声。核心三件事：<strong>表示</strong>（怎么构造 x）、<strong>泛化</strong>（在没见过的数据上是否仍然成立）、<strong>评估</strong>（用与训练一致的口径衡量好坏）。学习范式分三类：监督学习（有标签：分类/回归）、无监督学习（无标签：聚类/降维）、强化学习（以收益为奖励学策略）。</p>
+      <h4>1.2 机器学习模型的类别</h4>
+      <p>按函数形式分：线性模型（回归、逻辑回归、线性 SVM）——简单、可解释、数据效率高；树与集成（随机森林、GBDT、XGBoost）——处理非线性与特征交互，自带重要性排序；核方法（SVM、核 PCA）——小样本高维利器；神经网络（MLP/CNN/LSTM）——端到端表示学习，吃数据；概率图模型（GMM、HMM、CRF）——显式建模不确定性。没有"最好"的模型，只有与数据规模、噪声结构、可解释性要求匹配的模型。</p>
+      <h4>1.3 应用场景</h4>
+      <p>图像识别、语音识别、推荐系统、搜索排序、风控反欺诈、自动驾驶……共同点是<strong>数据量大、标注明确或奖励明确、环境相对稳定</strong>。金融场景的特殊性在于：信噪比极低（<code>ε</code> 巨大）、环境非平稳（分布随时间漂移）、标签昂贵且含未来信息风险——这决定了金融机器学习必须比其他领域更谨慎地对待"评估"环节。</p>
+      <h4>1.4 机器学习在量化交易中的应用</h4>
+      <ul>
+        <li><strong>行情状态识别</strong>：震荡/趋势/高波/低波分类——本页第 ④ 部分的 DD 法就是这一应用；</li>
+        <li><strong>收益与方向预测</strong>：因子 → 未来收益回归/分类（注意：直接预测价格的模型大多输给预测"状态"的模型）；</li>
+        <li><strong>因子挖掘与合成</strong>：用模型替代人工加权，用树模型做非线性因子组合；</li>
+        <li><strong>执行与微结构</strong>：冲击成本建模、下单时机、做市报价；</li>
+        <li><strong>组合与风控</strong>：协方差矩阵降噪（Ledoit-Wolf、因子模型）、尾部风险识别。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">2</span>数据获取与分析 <span class="sub">获取渠道 · 国内 vs 海外 · 差分概率分布 · 时间轴数据的问题</span></summary>
+    <div class="acc-body">
+      <h4>2.1 金融数据获取</h4>
+      <p>四个层次：交易所原始行情（Level-2、逐笔）→ 数据商清洗版（Wind、Tushare、聚源）→ 本地归档（如本页使用的 <code>D:\data</code> Parquet 分层存储）→ 因子库与标签库。工程要点：落盘用列式分区格式（Parquet，按年/交易日分区）、保留原始字段不做不可逆清洗、为每条数据记录"何时可得"（as-of 时间），这是防未来函数的第一道防线。</p>
+      <h4>2.2 国内金融数据与海外金融数据的区别</h4>
+      <table>
+        <tr><th>维度</th><th>国内（商品期货 / A股）</th><th>海外（美股 / 期货）</th></tr>
+        <tr><td>交易时段</td><td>分段：日盘 + 夜盘，午休停盘</td><td>连续交易（期货近 23 小时）</td></tr>
+        <tr><td>制度约束</td><td>涨跌停、T+1（股票）、限仓、合约换月</td><td>无涨跌停、T+0、可做空机制完善</td></tr>
+        <tr><td>连续合约</td><td>必须自建主力/指数连续（换月跳跃）</td><td>交易的主力合约连续性好，但仍需处理 roll</td></tr>
+        <tr><td>幸存者偏差</td><td>退市股处理历史口径不统一</td><td>同样有 delisting 问题，数据库通常有 survivorship-free 选项</td></tr>
+        <tr><td>对建模的含义</td><td>时间轴天然不均匀 → 催生第 3 讲的自定义轴</td><td>时间轴较均匀，但微结构噪声模型不同</td></tr>
+      </table>
+      <h4>2.3 金融数据的差分概率分布解析</h4>
+      <p>价格序列非平稳，直接建模价格没有意义；<strong>一阶差分</strong>（收益率、Δclose）才是金融机器学习的基本食材。解析差分分布会发现四个典型事实：尖峰厚尾（峰度 ≫ 3）、波动聚集（大波动后跟大波动）、轻微负自相关（高频）、长记忆性。理解自己的数据偏离正态多远、偏离在哪里，是选择模型和自定义轴的前提。</p>
+      <div class="xref">→ 本页第 ④ 部分：RB99 六年 17,280 根 30m Δclose 的分布解析（DD = 0.391、峰度 18.7）就是这一讲的完整实操。</div>
+      <h4>2.4 金融时间轴数据的问题</h4>
+      <ul>
+        <li><strong>不等间隔</strong>：午休、夜盘、节假日使"相邻 K 线"的时间跨度差异巨大；</li>
+        <li><strong>时间戳歧义</strong>：K 线时间标签是桶起点还是终点、按交易所还是本地时区，必须统一声明；</li>
+        <li><strong>跳跃与复权</strong>：换月价差、分红除息会在差分序列中制造假信号；</li>
+        <li><strong>未来函数陷阱</strong>：重采样、rolling 计算、分位数阈值若未严格滞后，就会偷看未来——本页全部图表的口径声明就是一份反面教材式检查清单。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">3</span>自定义非时间轴 <span class="sub">优势与实现 · DollarBar · C_1 轴 · 一阶差分近正态的自定义轴</span></summary>
+    <div class="acc-body">
+      <h4>3.1 非时间轴的优势与实现方法</h4>
+      <p>时间轴等间隔采样，但市场的"信息量"并不等间隔——开盘、数据发布、突破时刻信息密集，沉闷时段信息稀疏。按<strong>信息量</strong>切分 K 线（每根 bar 承载相近的成交/金额/波动），可让序列更接近独立同分布假设，波动率在 bar 间更平稳，模型的样本效率显著提升。实现方法：维护一个累计量（成交额、成交量、tick 数），每跨过一个阈值就切一根 bar。</p>
+      <h4>3.2 复现 Marcos López de Prado 的 DollarBar</h4>
+      <p>出自《Advances in Financial Machine Learning》：Dollar Bar 按<strong>累计成交额</strong>切分（如每 10 亿元一根）。相比时间 bar，dollar bar 的波动率跨 bar 更稳定、bar 数在行情活跃时自动加密、沉闷时自动稀疏，且天然规避"尾盘一根假突破 bar 信息量过大"的问题。复现步骤：逐笔/分钟数据累计 <code>amount</code>，达到阈值记录 bar（OHLCV 用区间聚合），重置计数器。实证中 dollar bar 的收益率分布比时间 bar 更接近正态。</p>
+      <h4>3.3 复现 C_1 自定义轴</h4>
+      <p>C_1 轴是课程自定义的切分轴（以成交/持仓相关累计量定义 bar 边界，思想与 dollar/volume bar 同源，但阈值与重置规则按品种特性标定）。复现要点：① 累计量选择要满足"单调、可观测、与信息量正相关"；② 阈值用全样本分位数标定后<strong>固定</strong>，避免逐段重估引入前视；③ bar 边界映射回时间轴后，与时间轴因子做一一对齐，才能与时间轴模型组合（见第 9 讲）。</p>
+      <h4>3.4 实现一阶差分接近正态分布的自定义轴</h4>
+      <p>选轴的量化标准：让 Δclose 的分布尽可能接近正态（峰度最小化、与正态的 L1/KL 距离最小化）。这正是 DD（分布差异）思想的正向用法——<strong>DD 不只是判断行情状态的指标，还是评估"轴选得好不好"的标尺</strong>。遍历候选累计量（tick 数 / 成交量 / 成交额 / 持仓变化）与阈值，选 DD 最小的组合，即得该品种的最优自定义轴。</p>
+      <div class="xref">→ 第 ④ 部分的 DD 指标在这里"一鱼两吃"：既选轴，又判行情。</div>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">4</span>数据标签 <span class="sub">模型打趋势标签 · 标签密度 · 标签与特征工程 · 标签与训练的关系</span></summary>
+    <div class="acc-body">
+      <h4>4.1 用机器学习模型为数据做趋势性标签</h4>
+      <p>两条路线：①<strong>规则标签</strong>：用明确规则（如三重屏障法：上轨止盈/下轨止损/时间到期取中间）给每根 bar 标注趋势方向；②<strong>模型标签</strong>：先训一个可解释的小模型（如 HMM 状态、趋势强度回归）输出软标签（0~1 的趋势概率），再离散化为标签。模型标签的优势在于把"趋势"这个模糊概念变成连续量，可作为后续模型的特征；风险在于标签质量受限于第一个模型的水平，错误会层层传导。</p>
+      <h4>4.2 根据趋势行为自定义标签的密度</h4>
+      <p>标签密度决定模型学什么：标签贴得太密（每根 bar 都有方向标签），噪声主导，模型学不到结构；贴得太疏，样本不足。经验做法：先统计不同持有期下的"趋势可实现收益"分布，找到信息衰减的临界持有期作为标注间隔；对震荡段宁可标"无趋势/中性"也不要硬给方向——<strong>允许模型说"不知道"</strong>是标签设计的重要自由度。</p>
+      <h4>4.3 标签与特征工程的关系</h4>
+      <p>三条纪律：①<strong>同源性检查</strong>——若标签由未来价格定义，任何含价格信息的特征都涉嫌泄露，必须用时点快照验证（特征在 t 时刻可得，标签用 t 之后的数据）；②<strong>标签对齐</strong>——特征窗口与标签窗口的间隔（embargo）要扣除特征计算本身所需的时间；③<strong>粒度匹配</strong>——高频特征配低频标签会稀释信号，反之过拟合。</p>
+      <h4>4.4 不同种类的标签与模型训练之间的关系</h4>
+      <table>
+        <tr><th>标签类型</th><th>对应模型</th><th>输出与用法</th></tr>
+        <tr><td>二分类（涨/跌）</td><td>逻辑回归、SVM、树模型</td><td>概率 → 阈值化信号；最易训练但信息损失大</td></tr>
+        <tr><td>多分类（强涨/震荡/强跌）</td><td>多分类树、softmax</td><td>震荡类概率可直接当 DD 的替代标签</td></tr>
+        <tr><td>回归（未来收益）</td><td>线性回归、GBDT、神经网络</td><td>连续预测 → 排序选标的；对异常值敏感需稳健损失</td></tr>
+        <tr><td>软标签 / 标签分布</td><td>蒸馏、混合密度网络</td><td>保留不确定性，适合作为上层组合模型的输入</td></tr>
+      </table>
+      <div class="xref">→ 第 ④ 部分"把 DD 嵌入全链路"正是用法一：用 DD 自动打 震荡/趋势/过渡 标签。</div>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">5</span>特征工程 <span class="sub">整数阶特征与窗口期 · 非时间轴因子 · 金融思维 vs 数学思维 · 熵的应用</span></summary>
+    <div class="acc-body">
+      <h4>5.1 整数阶数据特征与自定义窗口期的应用</h4>
+      <p>"整数阶"指系统化的滞后与矩结构：一阶（收益率、动量）、二阶（已实现波动、方差比率）、三阶（偏度）、四阶（峰度），以及各阶在自定义窗口上的滚动值。窗口期选择要与标注周期匹配：预测 20 日趋势就用 5/10/20 日多尺度窗口，而不是随手取 14。每个特征都要回答两个问题：<strong>它度量市场的什么状态</strong>、<strong>它随时间稳定吗</strong>。</p>
+      <h4>5.2 非时间轴因子作为特征的方法</h4>
+      <p>在自定义轴（dollar bar / C_1 轴）上计算的技术因子，映射回时间轴后与时间轴因子并列使用。注意：非时间轴因子的"窗口"语义变了（N 根 dollar bar ≠ N 小时），与时间轴因子组合时要各自做标准化，并在特征重要性中观察两类因子的互补性——这正是第 9 讲"多轴模型组合"的特征层基础。</p>
+      <h4>5.3 金融思维与数学思维的特征工程各自的优势与区别</h4>
+      <table>
+        <tr><th></th><th>金融思维（先验驱动）</th><th>数学思维（数据驱动）</th></tr>
+        <tr><td>来源</td><td>经济逻辑：基差、期限结构、产业链传导、资金面</td><td>统计变换：矩、分形维、频域、互相关</td></tr>
+        <tr><td>优势</td><td>可解释、跨品种稳健、失效时可诊断</td><td>不依赖先验、能捕捉未知结构、适配自动化挖掘</td></tr>
+        <tr><td>风险</td><td>逻辑过时、拥挤交易</td><td>过拟合、伪相关、不可解释</td></tr>
+        <tr><td>实践</td><td colspan="2">用金融思维定候选集与约束，用数学思维定形式与参数；树模型的特征重要性是两者对话的桥梁</td></tr>
+      </table>
+      <h4>5.4 特征工程与自定义轴之间的关系</h4>
+      <p>轴决定窗口的语义：同一公式（如"过去 20 根的标准差"），在时间轴上度量 20 个 30 分钟，在 dollar 轴上度量 20 个等金额区间，后者往往波动率更平稳、特征分布更稳定。<strong>换轴 = 免费的重采样正则化</strong>。本页 DD 特征族（DD 值、分位数、峰度、峰部比值、两轴背离度）示范了同一思想在分布层面的用法。</p>
+      <h4>5.5 熵在特征工程中的应用</h4>
+      <p>熵度量"不可预测性"：对收益率做符号/分箱序列，计算香农熵、近似熵（ApEn）或样本熵（SampEn），得到行情复杂度特征。经验规律：熵升高的阶段往往是震荡向趋势切换的前兆（结构从无序走向有序），熵骤降常见于趋势末端。熵特征与 DD 特征相关性低，组合使用可提升状态分类器的稳健性。</p>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">6</span>数据降维 <span class="sub">金融场景优势 · 方法与区别 · 实盘推理的问题与对策</span></summary>
+    <div class="acc-body">
+      <h4>6.1 数据降维在金融场景下的应用优势</h4>
+      <p>金融因子矩阵普遍高维、强共线、样本短（有效独立样本更少）。降维的价值：① 消除因子间共线性，稳定回归系数；② 降噪——PCA 保留的主成分往往对应"市场因子/风格因子"等真实结构；③ 把"几百个相关因子"压缩为少数正交风险源，缓解小样本高维灾难（维度灾难下距离度量失效、模型方差爆炸）。</p>
+      <h4>6.2 实现数据降维的各类方法与区别</h4>
+      <table>
+        <tr><th>方法</th><th>类型</th><th>特点与金融用法</th></tr>
+        <tr><td>PCA / KPCA</td><td>线性 / 核</td><td>最常用；PCA 取主成分因子，KPCA 处理非线性结构</td></tr>
+        <tr><td>MDS</td><td>线性（保距）</td><td>按距离结构投影，适合相关性矩阵可视化</td></tr>
+        <tr><td>LDA</td><td>监督</td><td>用标签信息定向投影，适合类别可分性最大化</td></tr>
+        <tr><td>t-SNE / UMAP</td><td>非线性</td><td>只做可视化与结构发现，特征不可外推回时序</td></tr>
+        <tr><td>自编码器</td><td>非线性（深度）</td><td>与预测模型联合训练；需大量样本与防过拟合设计</td></tr>
+        <tr><td>因子模型 / 随机矩阵</td><td>领域专用</td><td>用 PCA + Marchenko-Pastur 定律区分"真因子"与"噪声本征值"</td></tr>
+      </table>
+      <h4>6.3 数据降维带来的模型实盘推理问题</h4>
+      <ul>
+        <li><strong>载荷矩阵漂移</strong>：PCA 的载荷由历史相关矩阵估计，市场结构变化后主成分含义悄悄改变，实盘特征与训练特征"同名不同义"；</li>
+        <li><strong>前视风险</strong>：若用全样本估计载荷再回测，回测里已偷看未来结构——载荷必须只用训练段估计；</li>
+        <li><strong>在线计算成本与状态管理</strong>：滚动重估需要维护足够长的历史窗口与数值稳定性（协方差更新）。</li>
+      </ul>
+      <h4>6.4 如何解决数据降维对模型实盘推理的影响</h4>
+      <ul>
+        <li>载荷矩阵在训练期一次估计、实盘<strong>冻结</strong>使用，定期（月度/季度）在验证段确认后再更新；</li>
+        <li>监控特征值谱与子空间角度（principal angles），超阈值触发重训而非自动热替换；</li>
+        <li>用增量 SVD / 指数加权协方差做在线更新，但保留"训练-推理同一代码路径"的审计要求；</li>
+        <li>降维只用于风险分解与正则化时，保留原始特征供模型选择，避免单一通道失效。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">7</span>模型训练 <span class="sub">传统 vs 神经网络 · 训练结果对比 · 回测对比 · 防止过拟合</span></summary>
+    <div class="acc-body">
+      <h4>7.1 传统模型与神经网络模型各自的优势与区别</h4>
+      <table>
+        <tr><th></th><th>传统模型（线性/树/集成）</th><th>神经网络（MLP/CNN/LSTM）</th></tr>
+        <tr><td>数据需求</td><td>几千样本可用</td><td>通常需大几个量级</td></tr>
+        <tr><td>特征工程</td><td>依赖人工构造</td><td>可端到端学习表示</td></tr>
+        <tr><td>可解释性</td><td>强（系数/重要性/分裂路径）</td><td>弱（需事后归因工具）</td></tr>
+        <tr><td>噪声容忍</td><td>树模型对异常值稳健</td><td>需精心标准化与正则化</td></tr>
+        <tr><td>金融适配</td><td>状态分类、因子合成主力</td><td>盘口微结构、序列模式、另类数据</td></tr>
+      </table>
+      <h4>7.2 不同模型训练结果的对比与分析</h4>
+      <p>对比维度不止准确率：① <strong>时间稳健性</strong>——按年份切分看指标波动，金融模型最怕"某一年全靠运气"；② <strong>类不平衡下的校准</strong>——震荡/趋势样本天然不均，用 AUC、F1、校准曲线而非准确率；③ <strong>特征一致性</strong>——不同模型若都重度依赖同一特征，实则同一观点的多次下注。金融时序交叉验证必须用 <strong>purged k-fold + embargo</strong>（清除训练/验证间隔重叠样本，防止标签泄露）。</p>
+      <h4>7.3 不同模型训练后的回测结果对比与分析</h4>
+      <p>训练指标好 ≠ 回测赚钱。回测层要额外过四关：交易成本与滑点（尤其期货双边）、信号延迟一拍执行、资金占用与保证金、参数敏感性扫描。对比分析时把"训练分数 → 回测指标"的衰减率作为模型过拟合程度的度量；衰减小的模型更适合上线。</p>
+      <h4>7.4 如何防止过拟合</h4>
+      <ul>
+        <li><strong>数据侧</strong>： purged CV、embargo、样本外冻结区、多品种交叉验证（用 RB 训练、HC 验证）；</li>
+        <li><strong>模型侧</strong>：正则化（L1/L2/早停/剪枝）、降维、限制模型复杂度（奥卡姆剃刀）；</li>
+        <li><strong>检验侧</strong>：多重假设检验校正（Deflated Sharpe Ratio、White's reality check）、参数高原（plateau）而非单点寻优；</li>
+        <li><strong>流程侧</strong>：研究假设预先登记、上线后 paper trading 观察期、失效即退役（避免"调参调到回测好看"）。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">8</span>模型的通用性与专用性 <span class="sub">数据驱动 vs 逻辑驱动 · 股票指数化/ETF 互相关 · 商品期货指数化互相关</span></summary>
+    <div class="acc-body">
+      <h4>8.1 机器学习中的数据驱动型模型</h4>
+      <p>不预设市场结构，让数据说话：输入特征直接映射到预测目标（如 XGBoost 状态分类器）。优势是灵活、能发现非直觉规律；代价是规律可能不具备经济含义、跨市场迁移性差、失效时无法诊断原因。数据驱动模型要配更严的验证纪律。</p>
+      <h4>8.2 机器学习中的逻辑驱动型模型</h4>
+      <p>先写入结构假设再让数据填参数：套利定价（同一资产两地价格应收敛）、期限结构模型（contango/backwardation 的持有收益）、产业利润传导（钢厂利润 → 螺矿比）。优势是可解释、稳健、容量大；代价是结构假设错则全错，且"逻辑正确"不等于"信号及时"。实践中两者互补：逻辑驱动定方向与边界，数据驱动定时机与仓位。</p>
+      <h4>8.3 股票的指数化与 ETF 互相关特征与模型训练</h4>
+      <p>把个股/行业/宽基指数化成"市场因子 + 行业因子 + 特质项"后，ETF 与成分股、ETF 与期货（期现）之间的互相关结构本身就是特征：期现基差、ETF 折溢价、行业轮动相关矩阵的变化率。训练上，用指数化后的共同因子替代个股价格，可显著降低噪声、提升样本独立性。</p>
+      <h4>8.4 商品期货的指数化互相关特征与模型训练</h4>
+      <p>商品更适合指数化：品种指数（RB/HC/I/J/JM）之间有清晰产业链结构（黑色系：矿→焦→钢→材），互相关矩阵包含供需传导信息。常用特征：品种对价差与价比的 z-score、相关矩阵的特征值变化、主成分得分（商品市场有公认的"商品因子"）。<strong>通用性</strong>：商品因子模型可跨品种迁移；<strong>专用性</strong>：单一品种的库存/基差结构因子只在本地有效。模型设计时把通用因子放共享层、专用因子放品种层，是本讲思想的直接落地。</p>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">9</span>模型组合 <span class="sub">金融思维组合 · 数学思维组合 · 优势与风险 · 多自定义轴组合</span></summary>
+    <div class="acc-body">
+      <h4>9.1 金融思维下的模型组合方式</h4>
+      <p>按<strong>收益来源的经济逻辑</strong>分组：趋势组、套利组、 carry/期限结构组、事件驱动组，每组内相关性天然较高，组间相关性低。组合动作是"预算分配"：给每组风险预算（如各 25%），组内再分给模型。优点是结构清晰、每组可独立归因；缺点是组内模型同质化时分散是假相。</p>
+      <h4>9.2 数学思维下的模型组合方式</h4>
+      <p>按<strong>统计结构</strong>组合：Bagging（随机森林即模型级 bagging，降方差）、Boosting（串行纠偏，提升弱模型）、Stacking（元模型学习各模型输出的权重）、贝叶斯模型平均（按证据加权）、简单投票/秩合成。数学组合不追问"模型为什么对"，只优化"合在一起误差最小"——需要警惕元模型本身的过拟合（元特征极少时尤为如此）。</p>
+      <h4>9.3 不同模型组合方式的优势与潜在风险</h4>
+      <table>
+        <tr><th>方式</th><th>优势</th><th>潜在风险</th></tr>
+        <tr><td>金融分组预算</td><td>可解释、归因清晰、容量可控</td><td>分组先验错误；组内拥挤</td></tr>
+        <tr><td>集成（bagging/boosting）</td><td>方差降低、稳定</td><td>成员同偏时无效；训练成本高</td></tr>
+        <tr><td>Stacking / 元模型</td><td>自适应权重、捕捉非线性互补</td><td>元层过拟合；权重漂移需监控</td></tr>
+        <tr><td>预测市场式加权</td><td>按近期表现动态调整</td><td>追涨杀跌、换手成本</td></tr>
+      </table>
+      <h4>9.4 不同自定义轴模型组合的方法</h4>
+      <p>三个层次的组合：①<strong>特征层</strong>：时间轴特征 + 成交量轴特征 + C_1 轴特征并列输入同一模型，让模型自己学各轴权重；②<strong>信号层</strong>：每个轴训练独立状态分类器，信号按"轴的可信度"（近端样本外表现）加权投票——本页 DD 法可分别在时间轴与换手率轴上独立计算再交叉验证；③<strong>门控层</strong>：用一个元模型判断"当前哪个轴的信息量更可信"（如波动聚集期信时间轴、放量突破期信量轴），动态切换主模型。层次越高，组合能力越强，过拟合与工程复杂度也越高。</p>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">10</span>模型推理与实盘交易 <span class="sub">实时推理方法 · 注意事项 · 全自动交易代码 · 提升资金规模</span></summary>
+    <div class="acc-body">
+      <h4>10.1 实盘交易中模型实时推理的方法</h4>
+      <p>推理 = 特征计算 + 模型调用 + 信号落成订单意图。工程上三条原则：① <strong>训练与推理同一代码路径</strong>——特征函数只写一份，训练批处理与实盘流式都调用它，杜绝"训练用一份特征、实盘算另一份"；② <strong>增量计算</strong>——滚动特征用增量状态更新（如 DD 的滚动直方图只需每 bar 增删计数），避免每 tick 全量重算；③ <strong>快照与回放</strong>——每个决策时刻保存"输入快照 + 模型版本 + 输出"，支持事后逐笔回放审计。</p>
+      <h4>10.2 实盘实时推理需要注意的问题</h4>
+      <ul>
+        <li><strong>数据缺失与迟到</strong>：1m 数据迟到、夜盘切换日归属错误，都要有兜底（跳过本 bar 或沿用上一状态并标记）；</li>
+        <li><strong>特征一致性</strong>：复权因子、主力切换若在盘中发生，特征口径必须与研究时声明的一致；</li>
+        <li><strong>时序竞争</strong>：收盘信号在下根 bar 开盘执行，任何"用本 bar 收盘同时成交"的回测假设都要在实盘降级；</li>
+        <li><strong>状态机健壮性</strong>：断线重连、行情跳变、订单回报丢失，状态机要能恢复与对账；</li>
+        <li><strong>监控告警</strong>：特征分布漂移（PSI）、模型输出分布、成交滑点，三线监控。</li>
+      </ul>
+      <h4>10.3 实现模型全过程自动完成交易的代码实现</h4>
+      <p>标准架构：<code>行情接入 → 特征引擎（增量） → 模型推理服务 → 信号/风控层 → 订单执行适配器 → 回报对账 → 持久化日志</code>。风控层必须在模型与订单之间独立存在（仓位上限、单日亏损熔断、保证金检查），模型不直接碰下单接口。全程异步消息驱动，每环节幂等（同一信号重复到达只执行一次）。写代码时的第一性要求：<strong>任何时刻 dump 出完整状态即可完整回放</strong>。</p>
+      <h4>10.4 如何提升模型的资金管理规模</h4>
+      <ul>
+        <li><strong>容量评估</strong>：信号容量 = 不改变价格的前提下可成交的规模；用参与率（volume participation）与冲击成本曲线定上限；</li>
+        <li><strong>分散扩容</strong>：多品种、多周期、多策略并行，相关性低的策略组合让总容量线性增长；</li>
+        <li><strong>执行优化</strong>：TWAP/VWAP/POV 拆分母单，冲击成本往往比信号 alpha 衰减更快，执行优化的边际收益常大于换模型；</li>
+        <li><strong>资金分层</strong>：小规模用高夏普窄容量策略，大规模逐步切换到宽容量策略，避免单一策略规模硬顶。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="lecture">
+    <summary><span class="no">11</span>扩展阅读 <span class="sub">推荐图书 · 推荐论文</span></summary>
+    <div class="acc-body">
+      <h4>推荐图书</h4>
+      <ul class="booklist">
+        <li><b>《Advances in Financial Machine Learning》— Marcos López de Prado</b><br>金融机器学习方法论奠基之作：三重屏障标签、purged CV、meta-labeling、Dollar Bar 全部出自此书。本课程第 3、4、7 讲的核心方法多源于此。</li>
+        <li><b>《Machine Trading》— Ernest P. Chan</b><br>从回测到实盘的完整工程视角，代码与策略并重，适合作为第一本上手书。</li>
+        <li><b>《The Elements of Statistical Learning》— Hastie, Tibshirani, Friedman</b><br>统计学习理论标准教材，理解偏差-方差、正则化、集成方法的源头。</li>
+        <li><b>《Advances in Active Portfolio Management》— Grinold & Kahn</b><br>理解"信号 → 预期收益 → 组合权重"的量化正统链条，防止把机器学习用成黑箱赌博。</li>
+        <li><b>《Python for Finance》— Yves Hilpisch</b><br>金融数据处理的工程工具箱：向量化回测、衍生品定价、数据管理。</li>
+      </ul>
+      <h4>推荐论文</h4>
+      <ul class="booklist">
+        <li><b>The 10 Reasons Most Machine Learning Funds Fail</b>（López de Prado, 2018）——金融机器学习失败的十个系统性原因，逐条对照自查。</li>
+        <li><b>Backtest Overfitting in Financial Markets</b>（Bailey, Borwein, López de Prado 等）——Deflated Sharpe / PBO 框架，回答"回测好是运气还是本事"。</li>
+        <li><b>Building Diversified Portfolios that Outperform Out-of-Sample</b>（López de Prado, 2016）——嵌套聚类优化（NCO），比均值-方差更稳健的权重求解。</li>
+        <li><b>A Deep Reinforcement Learning Framework for the Financial Portfolio Management Problem</b>（Jiang, Xu, Liang, 2017）——深度强化学习做组合管理的早期代表作，理解 RL 在交易中的能力与局限。</li>
+        <li><b>Financial Time Series Forecasting with Deep Learning</b>（综述类，Sezer et al., 2020）——系统梳理 CNN/RNN/LSTM/注意力模型在价格预测上的真实表现，结论冷静，适合建立合理预期。</li>
+      </ul>
+    </div>
+  </details>
+
+</div></section>
+
+<!-- ==================== 4 DD 重点 ==================== -->
+<section id="dd"><div class="wrap">
+  <h2 class="hot"><span class="no">★</span>重点：震荡行情的判断用法 —— DD 分布差异法</h2>
+  <p class="lead">DD（Data Difference，分布差异）是「自定义轴」思想的直接产物：<strong>不看某根K线的涨跌，而看一段行情价格变动量的<strong>分布形状</strong>与正态分布差了多少、差在哪里</strong>。差异的形态本身就告诉你市场在震荡还是在走趋势。</p>
+
+  <h3><span class="dot"></span>4.1 为什么分布能区分震荡与趋势？</h3>
+  <ul>
+    <li><strong>趋势行情</strong>：价格沿一个方向持续漂移，变动量分布较<strong class="hl">平、宽</strong>，接近甚至被正态分布"压平"，还可能因中途换挡出现偏峰。</li>
+    <li><strong>震荡行情</strong>：价格在区间内来回均值回归，绝大多数变动量极小、偶尔出现反向跳动，分布呈现明显的<strong class="hlc">尖峰</strong>（峰部高于正态）伴随厚尾。</li>
+    <li>因此：<span class="hlc">尖峰 = 震荡特征</span>；<span class="hl">平峰 / 偏峰 = 趋势特征</span>。DD 法就是把"峰部与尾部的偏离程度"量化成一个可跟踪的指标。</li>
+  </ul>
+
+  <h3 class="hot"><span class="dot"></span>4.2 Time Line DD：30 分钟时间线的分布差异（主指标）</h3>
+  <p>对 RB99 的 30m K线取价格变动量 Δclose（2019.1 – 2025.1，共 17,280 根），画出经验分布曲线，并与同均值、同方差的正态分布对比：</p>
+  <div class="fig">
+    <canvas id="realKde" width="1000" height="400" style="width:100%;height:auto;display:block"></canvas>
+    <div class="cap"><b>图 1 ｜ Time Line DD（真实数据）</b>：RB99 主力连续 · 30m · 2019-01-02 – 2025-01-27 · <b>17,280 根</b>（与大纲案例同一口径）。实线为 Δclose 经验分布（KDE），虚线为正态分布；全样本呈<b>尖峰 + 厚尾</b>：大部分 30m 变动在 ±1σ 以内（震荡底色），偶发极端变动（趋势/跳空）。</div>
+  </div>
+
+  <h3 class="hot"><span class="dot"></span>4.3 Turnover Line DD（PD）：用换手率线的分布来交叉验证</h3>
+  <p>只看价格分布容易在"缩量阴跌/缩量横盘"时误判。把<strong>换手率（成交量 / 持仓量）线</strong>按同一 30m 时间线对齐聚合（1m 原始成交 → 30m），同样计算它与正态的分布差异 PD（Price × Distribution 的匹配差异）。<strong>两条线的 DD 互相印证，才算行情状态可信</strong>：</p>
+  <div class="fig">
+    <canvas id="realTurn" width="1000" height="360" style="width:100%;height:auto;display:block"></canvas>
+    <div class="cap"><b>图 2 ｜ Turnover Line Data Difference PD（Match 30m Time Line，真实数据）</b>：30m 换手率（vol / oi，标准化）的经验分布 vs 正态。换手率分布比价格分布更偏离正态（PD = 0.540 &gt; DD = 0.391），右偏厚尾说明量能分布天然不均匀——用它的<b>滚动分位变化</b>与 Time Line DD 对照：两线同向 → 状态可信；<b>背离 → 信号降权或观望</b>。</div>
+  </div>
+
+  <h3 class="hot"><span class="dot"></span>4.4 六年滚动 DD 轨迹与行情状态判定（严格因果口径）</h3>
+  <p>把 DD 变成滚动指标（窗口 W = 240 根 ≈ 20 个交易日），并对状态阈值采用<b>扩展窗口分位 + 滞后一期</b>的因果判定，得到六年的行情状态轨迹：DD 走高（分布更尖）→ 震荡；DD 走低（分布压平）→ 趋势。</p>
+  <div class="fig">
+    <canvas id="realTs" width="1000" height="560" style="width:100%;height:auto;display:block"></canvas>
+    <div class="cap"><b>图 3 ｜ RB99 30m：价差复权价格（上）与滚动 DD 及状态判定（下）</b>。底色：<span style="color:var(--cyan)">■ 震荡（DD ≥ 扩展窗口 q75）</span>　<span style="color:var(--amber)">■ 趋势（DD ≤ q35）</span>　<span style="color:#5a6b80">■ 过渡带</span>。判定在 t 时刻只使用 t 及之前的数据，无任何未来信息。</div>
+  </div>
+  <div class="callout c"><b>数据与「无未来函数」口径声明（本页全部真实图表通用）：</b>
+    <ul style="margin-top:8px">
+      <li><b>数据源</b>：<code>D:\data\future_1m\YYYY\YYYYMMDD.parquet</code>（1m 分合约行情，2019-01-02 – 2025-01-27，1,474 个交易日）；2025 年 1 月仅有供应商主力连续 <code>RB8888</code>，仅用于信号拼接并在接缝处做价差对齐。</li>
+      <li><b>主力判定</b>：第 d 日主力 = 第 d-1 日成交量最大合约（并列比持仓量）——用昨天的量决定今天跟谁，<b>单日滞后</b>；首日无历史，用当日量（bootstrap，单独声明）。</li>
+      <li><b>换月复权</b>：价差回溯调整（back-adjust），roll 日缺口 = 新旧主力当日首个共有分钟收盘价之差，共 19 次换月；只影响历史价格水平，不引入未来涨跌。</li>
+      <li><b>K线聚合</b>：交易时段内自然 30 分钟分桶，收盘 = 桶内最后一分钟收盘价；夜盘（21:00–23:00）按交易日归属排在日前。</li>
+      <li><b>滚动指标</b>：滚动 DD 在 t 时刻仅使用 [t−239, t] 窗口；状态阈值取 [0, t−1] 扩展窗口的 q75 / q35 分位并滞后一期。全样本分布图（图 1/图 2）为描述性统计，不参与任何时序判定。</li>
+    </ul>
+  </div>
+  <table>
+    <tr><th>观察项</th><th>判定</th><th>含义</th><th>策略动作</th></tr>
+    <tr class="hotrow"><td>Time Line DD 处于历史 <b>80% 分位以上</b>，且峰部高于正态（尖峰）</td><td><span class="pill osc">震荡市</span></td><td>价格变动高度集中于 0 附近，均值回归主导</td><td>停用/降权趋势突破策略；改用<strong>高抛低吸、网格、期现/跨期套利</strong>；收紧仓位，止损改为区间边界</td></tr>
+    <tr><td>Time Line DD 回落，分布中心偏移、出现单肩（偏峰）</td><td><span class="pill trend">趋势市</span></td><td>变动量分布展宽，方向性漂移主导</td><td>恢复趋势跟踪；让利润奔跑，止损改为移动止损</td></tr>
+    <tr><td>DD 居中、形态模糊</td><td><span class="pill mid">过渡带</span></td><td>状态即将切换</td><td>降仓观望，等待分布形态清晰</td></tr>
+    <tr><td>Time Line DD 与 Turnover Line DD <b>背离</b></td><td><span class="pill mid">存疑</span></td><td>价格分布与量能分布不同步，常见于假突破/缩量横盘</td><td><strong>不入场或信号降权</strong>，等两线重新匹配</td></tr>
+  </table>
+  <div class="callout"><b>要点：</b>DD 是<strong>滚动窗口</strong>指标（如 30m 线取最近 20 个交易日），看的是<strong>分位数与形态</strong>（尖峰 / 平峰 / 偏峰），而不是 DD 绝对值本身。先定状态，再选策略——这是它在全链路中的位置。</div>
+
+  <h3 class="hot"><span class="dot"></span>4.6 交互演示（模拟数据）：拖动滑块，观察分布形态如何随行情切换</h3>
+  <div class="demo">
+    <div class="ctrl">
+      <button class="btn" id="regen">⟳ 重新生成行情</button>
+      <span style="color:var(--mut);font-size:14px">行情构成：</span>
+      <input type="range" id="w" min="0" max="100" value="80">
+    </div>
+    <div class="ends"><span>◀ 纯趋势（随机漂移 + 阶段性漂移换挡）</span><span>纯震荡（均值回归 OU 过程）▶</span></div>
+    <div class="readout">
+      <div class="ro"><div class="v" id="roDD">–</div><div class="l">DD：经验分布与正态的 L1 偏离</div></div>
+      <div class="ro"><div class="v" id="roKurt">–</div><div class="l">峰度（正态 = 3）</div></div>
+      <div class="ro"><div class="v" id="roPeak">–</div><div class="l">峰部比值（经验峰 / 正态峰）</div></div>
+      <div class="ro"><div class="v mid" id="roVerdict">–</div><div class="l">分布形态判定</div></div>
+    </div>
+    <canvas id="demoCv" width="1000" height="440"></canvas>
+    <div class="hint">左：模拟价格路径（30m 线，5m 采样聚合）。右：变动量的经验分布（KDE，实线）vs 正态分布（虚线）。把滑块从一端拖到另一端：趋势行情分布被"压平"，震荡行情出现明显尖峰——这就是 DD 判断震荡的全部直觉。</div>
+  </div>
+</div></section>
+
+<!-- ==================== 4 嵌入全链路 ==================== -->
+<section id="embed" class="alt"><div class="wrap">
+  <h2><span class="no">5</span>把 DD 嵌入机器学习全链路</h2>
+  <p class="lead">DD 不止是一个人工观察指标，它可以作为原料回流到第一环节的链路中，形成自动化的行情状态识别系统：</p>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0"><span class="dot"></span>用法一：DD 直接作为「数据标签」</h3>
+      <ol>
+        <li>滚动窗口计算 Time Line DD、Turnover Line DD 及其分位数；</li>
+        <li>按规则 3.4 自动标注每段行情：<code>震荡 / 趋势 / 过渡</code>；</li>
+        <li>标签进入模型训练集，替代人工标注。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><span class="dot"></span>用法二：DD 家族作为「特征工程」因子</h3>
+      <ol>
+        <li>特征：DD 值、DD 分位数、峰度、峰部比值、偏度、两线 DD 背离度；</li>
+        <li>用随机森林 / XGBoost 训练行情状态分类器，输出<strong>震荡概率</strong>；</li>
+        <li>树模型同时给出特征重要性，验证 DD 因子是否真在起作用。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><span class="dot"></span>用法三：模型组合层的「策略开关」</h3>
+      <ol>
+        <li>震荡概率 &gt; 阈值 → 组合层切换到均值回归类子策略；</li>
+        <li>趋势概率占优 → 切换到趋势跟踪类子策略；</li>
+        <li>HMM / GMM 可替代阈值规则，做隐状态平滑切换，避免状态抖动。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><span class="dot"></span>用法四：回测与实盘的闭环校验</h3>
+      <ol>
+        <li>回测中单独统计「震荡判定区间」的策略盈亏，验证开关有效性；</li>
+        <li>实盘推理阶段持续记录 DD 轨迹与判定结果；</li>
+        <li>定期回放：判定错误的时段 → 回流修正标签与阈值 → 重训。</li>
+      </ol>
+    </div>
+  </div>
+  <div class="callout c"><b>一句话总结：</b>自定义轴（时间线 / 换手率线）→ 分布差异 DD → 行情状态标签 → 分类模型 → 组合层策略开关 → 实盘回流，正是「全链路规划」七步在震荡判断这个问题上的完整落地。</div>
+</div></section>
+
+<footer>机器学习全链路讲解 · 震荡行情 DD 判断法 ｜ 真实数据口径：RB99 主力连续 · 30m · 2019-01-02 – 2025-01-27 · 17,280 根 ｜ 交互演示为模拟数据，仅用于机制说明</footer>
+
+<script>
+(function(){
+  // ---------- RNG ----------
+  function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+  // ---------- generate blended series ----------
+  function genSeries(w){            // w: 0=trend, 1=oscillation
+    const N=720, step=6;            // 720 x 5m -> 120 x 30m bars
+    const px=[0]; let drift=0.55, volLeft=0, volScale=1;
+    for(let i=1;i<=N;i++){
+      if(i%150===0) drift=(Math.random()<0.5?-1:1)*(0.35+Math.random()*0.5);
+      if(--volLeft<=0){          // 波动率状态（波动聚集），短状态保证样本内 burst 充足
+        volLeft=5+Math.floor(Math.random()*11);
+        const u=Math.random(), qSig=1.45-1.0*w;      // 安静档波动率随震荡成色收窄（区间压缩）
+        volScale = u<0.55+0.4*w ? qSig : (u<0.85 ? 1.5 : 3.0);
+      }
+      const noise=gauss()*volScale;
+      const trendRet=drift+noise*1.6;                // 趋势：方向漂移 + 持续较大波动
+      const dev=px[px.length-1];                     // 偏离均值的距离
+      const oscRet=-0.12*dev+noise*0.8;              // 震荡：均值回归（OU）+ 多数时间小波动
+      px.push(px[px.length-1]+(1-w)*trendRet+w*oscRet);
+    }
+    const bars=[], rets=[];
+    for(let i=step;i<px.length;i+=step) bars.push(px[i]);
+    for(let i=1;i<bars.length;i++) rets.push(bars[i]-bars[i-1]);
+    return {bars,rets};
+  }
+
+  // ---------- stats ----------
+  function mean(a){return a.reduce((s,v)=>s+v,0)/a.length;}
+  function std(a,m){return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length);}
+  function kurtosis(a,m,s){return a.reduce((s2,v)=>s2+Math.pow((v-m)/s,4),0)/a.length;}
+  function kde(z,h){return function(x){let s=0;for(const v of z)s+=Math.exp(-0.5*((x-v)/h)**2);return s/(z.length*h*Math.sqrt(2*Math.PI));};}
+  function normPdf(x){return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);}
+
+  // ---------- canvas ----------
+  const cv=document.getElementById('demoCv'), ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height,dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.height=(H/W*100)+'%';
+  ctx.scale(dpr,dpr);
+
+  const splitX=545; // price | distribution
+
+  function draw(){
+    const w=document.getElementById('w').value/100;
+    const {bars,rets}=genSeries(w);
+    const m=mean(rets),s=std(rets,m)||1e-9;
+    const z=rets.map(r=>(r-m)/s);
+    const kurt=kurtosis(rets,m,s);
+    const h=1.06*Math.pow(z.length,-0.2);
+    const f=kde(z,h);
+
+    // ---- metrics ----
+    let dd=0; for(let x=-4.5;x<=4.5;x+=0.05) dd+=Math.abs(f(x)-normPdf(x))*0.05;
+    let peakF=0; for(let x=-4.5;x<=4.5;x+=0.05) peakF=Math.max(peakF,f(x));
+    const peakRatio=peakF/normPdf(0);
+    let verdict, cls;
+    if(kurt>5){verdict='尖峰厚尾 → 震荡特征';cls='osc';}
+    else if(kurt<3.8){verdict='宽平近正态 → 趋势特征';cls='trend';}
+    else {verdict='过渡带';cls='mid';}
+    const rDD=document.getElementById('roDD'),rK=document.getElementById('roKurt'),
+          rP=document.getElementById('roPeak'),rV=document.getElementById('roVerdict');
+    rDD.textContent=dd.toFixed(3);
+    rK.textContent=kurt.toFixed(2);
+    rP.textContent=peakRatio.toFixed(2)+'×';
+    rV.textContent=verdict; rV.className='v '+cls;
+    const col=cls==='osc'?'#39c5cf':(cls==='trend'?'#f0a832':'#9aa7b8');
+
+    // ---- clear ----
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0a0f16'; ctx.fillRect(0,0,W,H);
+
+    // ================= price panel =================
+    const pL=40,pR=splitX-25,pT=30,pB=H-45;
+    let mn=Math.min(...bars),mx=Math.max(...bars); const pad=(mx-mn)*0.08||1; mn-=pad; mx+=pad;
+    const X=i=>pL+(pR-pL)*i/(bars.length-1);
+    const Y=v=>pT+(pB-pT)*(1-(v-mn)/(mx-mn));
+    // grid
+    ctx.strokeStyle='#1c2635'; ctx.lineWidth=1; ctx.beginPath();
+    for(let i=1;i<5;i++){const y=pT+(pB-pT)*i/5;ctx.moveTo(pL,y);ctx.lineTo(pR,y);}
+    ctx.stroke();
+    // zero line
+    if(mn<0&&mx>0){ctx.strokeStyle='#2a3648';ctx.setLineDash([4,4]);ctx.beginPath();
+      ctx.moveTo(pL,Y(0));ctx.lineTo(pR,Y(0));ctx.stroke();ctx.setLineDash([]);}
+    // price path
+    const grad=ctx.createLinearGradient(pL,0,pR,0);
+    grad.addColorStop(0,'#f0a832'); grad.addColorStop(1,'#39c5cf');
+    ctx.strokeStyle=w>0.5?'#39c5cf':'#f0a832'; ctx.lineWidth=1.6;
+    ctx.beginPath();
+    bars.forEach((v,i)=>i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v)));
+    ctx.stroke();
+    // labels
+    ctx.fillStyle='#6b7a8f'; ctx.font='12px sans-serif';
+    ctx.fillText('价格路径（30m 线，'+bars.length+' 根）',pL,pT-10);
+    ctx.fillText('趋势成色 '+(100-document.getElementById('w').value)+'%',pL+190,pT-10);
+    ctx.fillText('震荡成色 '+document.getElementById('w').value+'%',pL+300,pT-10);
+    ctx.textAlign='right'; ctx.fillText(mx.toFixed(1),pL-6,pT+4); ctx.fillText(mn.toFixed(1),pL-6,pB);
+    ctx.textAlign='left';
+
+    // ================= distribution panel =================
+    const dL=splitX+45,dR=W-40,dT=30,dB=H-70;
+    const dY=d=>dT+(dB-dT)*(1-d/0.75);   // density 0..0.75
+    const dX=x=>dL+(dR-dL)*(x+4.5)/9;
+    ctx.strokeStyle='#1c2635'; ctx.beginPath();
+    for(let i=0;i<=4;i++){const x=-4.5+i*9/4;ctx.moveTo(dX(x),dT);ctx.lineTo(dX(x),dB);}
+    for(let i=1;i<=4;i++){const y=dT+(dB-dT)*i/4;ctx.moveTo(dL,y);ctx.lineTo(dR,y);}
+    ctx.stroke();
+    // normal curve
+    ctx.strokeStyle='#8b98ab'; ctx.setLineDash([7,5]); ctx.lineWidth=1.8; ctx.beginPath();
+    for(let x=-4.5;x<=4.5;x+=0.05){const y=dY(normPdf(x)); x===-4.5?ctx.moveTo(dX(x),y):ctx.lineTo(dX(x),y);}
+    ctx.stroke(); ctx.setLineDash([]);
+    // empirical KDE
+    ctx.strokeStyle=col; ctx.lineWidth=2.4; ctx.beginPath();
+    let first=true;
+    for(let x=-4.5;x<=4.5;x+=0.05){const y=dY(f(x)); first?ctx.moveTo(dX(x),y):ctx.lineTo(dX(x),y); first=false;}
+    ctx.stroke();
+    // fill empirical
+    ctx.lineTo(dX(4.5),dB); ctx.lineTo(dX(-4.5),dB); ctx.closePath();
+    ctx.fillStyle=col.replace(')',',.10)').replace('#39c5cf','rgba(57,197,207').replace('#f0a832','rgba(240,168,50').replace('#9aa7b8','rgba(154,167,184');
+    ctx.fill();
+    // axes labels
+    ctx.fillStyle='#6b7a8f'; ctx.font='12px sans-serif';
+    ctx.fillText('变动量分布：经验（实线）vs 正态（虚线）',dL,dT-10);
+    ctx.textAlign='center';
+    for(let i=0;i<=4;i++){const x=-4.5+i*9/4;ctx.fillText(x.toFixed(1).replace('-0','0'),dX(x),dB+18);}
+    ctx.fillText('标准化变动量', (dL+dR)/2, dB+38);
+    ctx.textAlign='right';
+    ['0.75','0.56','0.38','0.19','0'].forEach((t,i)=>ctx.fillText(t,dL-8,dY([0.75,0.5625,0.375,0.1875,0][i])+4));
+    ctx.textAlign='left';
+    // legend + verdict text
+    ctx.fillStyle=col; ctx.fillRect(dL,dB+52,14,3);
+    ctx.fillStyle='#c8d3e0'; ctx.fillText('经验分布',dL+20,dB+58);
+    ctx.fillStyle='#8b98ab'; ctx.fillRect(dL+95,dB+52,14,3);
+    ctx.fillStyle='#c8d3e0'; ctx.fillText('正态分布',dL+115,dB+58);
+    ctx.fillStyle=col; ctx.font='bold 15px sans-serif';
+    ctx.fillText('判定：'+verdict,dL+200,dB+58);
+    // divider
+    ctx.strokeStyle='#2a3648'; ctx.beginPath();
+    ctx.moveTo(splitX,10); ctx.lineTo(splitX,H-10); ctx.stroke();
+  }
+
+  document.getElementById('w').addEventListener('input',draw);
+  document.getElementById('regen').addEventListener('click',draw);
+  draw();
+})();
+</script>
+<script src="real_data.js"></script>
+<script>
+(function(){
+  if (typeof REAL_DATA === 'undefined') {
+    document.querySelectorAll('#realKde,#realTurn,#realTs').forEach(function(c){
+      var g=c.getContext('2d'); g.fillStyle='#ef5b64'; g.font='16px sans-serif';
+      g.fillText('real_data.js 未加载，真实图表不可用', 30, 40);
+    });
+    return;
+  }
+  var D = REAL_DATA, M = D.meta;
+  var CYAN='#39c5cf', AMBER='#f0a832', GRAY='#8b98ab', GRID='#1c2635';
+
+  function setup(id, w, h){
+    var cv = document.getElementById(id), dpr = window.devicePixelRatio || 1;
+    cv.width = w*dpr; cv.height = h*dpr;
+    var ctx = cv.getContext('2d'); ctx.scale(dpr,dpr);
+    ctx.fillStyle='#0a0f16'; ctx.fillRect(0,0,w,h);
+    return {ctx:ctx, w:w, h:h};
+  }
+  function line(ctx, pts, color, dash, width){
+    ctx.strokeStyle=color; ctx.lineWidth=width||2;
+    if(dash) ctx.setLineDash(dash); ctx.beginPath();
+    pts.forEach(function(p,i){ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function fillUnder(ctx, pts, base, color){
+    ctx.fillStyle=color; ctx.beginPath();
+    pts.forEach(function(p,i){ i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); });
+    ctx.lineTo(pts[pts.length-1][0],base); ctx.lineTo(pts[0][0],base); ctx.closePath(); ctx.fill();
+  }
+
+  /* ---------- 图1：全样本 Δclose 分布 vs 正态 ---------- */
+  (function(){
+    var s = setup('realKde', 1000, 400), ctx = s.ctx;
+    var L=60,R=s.w-30,T=30,B=s.h-55, ymax=0.75;
+    var xs=D.grid;
+    var X=x=>L+(R-L)*(x+4.5)/9, Y=v=>T+(B-T)*(1-v/ymax);
+    ctx.strokeStyle=GRID; ctx.beginPath();
+    for(var i=0;i<=6;i++){var x=-4.5+i*9/6; ctx.moveTo(X(x),T); ctx.lineTo(X(x),B);}
+    for(i=0;i<=3;i++){var y=T+(B-T)*i/3; ctx.moveTo(L,y); ctx.lineTo(R,y);}
+    ctx.stroke();
+    var nrm=xs.map((x,i)=>[X(x),Y(D.normal[i])]);
+    var emp=xs.map((x,i)=>[X(x),Y(D.kde[i])]);
+    fillUnder(ctx, emp, B, 'rgba(57,197,207,.10)');
+    line(ctx, nrm, GRAY, [7,5], 1.8);
+    line(ctx, emp, CYAN, null, 2.4);
+    ctx.fillStyle='#6b7a8f'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    for(i=0;i<=6;i++){var xv=-4.5+i*9/6; ctx.fillText(xv.toFixed(1),X(xv),B+18);}
+    ctx.fillText('Δclose（标准化）', (L+R)/2, B+40);
+    ctx.textAlign='right';
+    ['0.75','0.50','0.25','0'].forEach(function(t,i){ctx.fillText(t,L-8,Y(ymax*[1,2/3,1/3,0][i])+4);});
+    ctx.textAlign='left';
+    // legend + real metrics
+    ctx.fillStyle=CYAN; ctx.fillRect(L,T+4,14,3); ctx.fillStyle='#c8d3e0';
+    ctx.fillText('经验分布（KDE, Silverman 带宽）', L+22, T+10);
+    ctx.fillStyle=GRAY; ctx.fillRect(L,T+22,14,3); ctx.fillStyle='#c8d3e0';
+    ctx.fillText('正态分布（同均值同方差）', L+22, T+28);
+    ctx.font='bold 14px sans-serif'; ctx.fillStyle=AMBER;
+    ctx.fillText('DD = '+M.dd_full+'　峰度 = '+M.kurt_full+'（正态 = 3）　峰部比值 = '+M.peak_ratio+'×', L+320, T+18);
+  })();
+
+  /* ---------- 图2：换手率 PD ---------- */
+  (function(){
+    var s = setup('realTurn', 1000, 360), ctx = s.ctx;
+    var L=60,R=s.w-30,T=30,B=s.h-55, ymax=0.75;
+    var xs=D.grid;
+    var X=x=>L+(R-L)*(x+4.5)/9, Y=v=>T+(B-T)*(1-v/ymax);
+    ctx.strokeStyle=GRID; ctx.beginPath();
+    for(var i=0;i<=6;i++){var x=-4.5+i*9/6; ctx.moveTo(X(x),T); ctx.lineTo(X(x),B);}
+    for(i=0;i<=3;i++){var y=T+(B-T)*i/3; ctx.moveTo(L,y); ctx.lineTo(R,y);}
+    ctx.stroke();
+    var nrm=xs.map((x,i)=>[X(x),Y(D.normal[i])]);
+    var emp=xs.map((x,i)=>[X(x),Y(D.kde_turnover[i])]);
+    fillUnder(ctx, emp, B, 'rgba(240,168,50,.10)');
+    line(ctx, nrm, GRAY, [7,5], 1.8);
+    line(ctx, emp, AMBER, null, 2.4);
+    ctx.fillStyle='#6b7a8f'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    for(i=0;i<=6;i++){var xv=-4.5+i*9/6; ctx.fillText(xv.toFixed(1),X(xv),B+18);}
+    ctx.fillText('30m 换手率 vol/oi（标准化）', (L+R)/2, B+40);
+    ctx.textAlign='right';
+    ['0.75','0.50','0.25','0'].forEach(function(t,i){ctx.fillText(t,L-8,Y(ymax*[1,2/3,1/3,0][i])+4);});
+    ctx.textAlign='left';
+    ctx.fillStyle=AMBER; ctx.fillRect(L,T+4,14,3); ctx.fillStyle='#c8d3e0';
+    ctx.fillText('换手率经验分布（PD）', L+22, T+10);
+    ctx.fillStyle=GRAY; ctx.fillRect(L,T+22,14,3); ctx.fillStyle='#c8d3e0';
+    ctx.fillText('正态分布', L+22, T+28);
+    ctx.font='bold 14px sans-serif'; ctx.fillStyle=AMBER;
+    ctx.fillText('PD = '+M.dd_turnover+'（对照 Time Line DD = '+M.dd_full+'）', L+250, T+18);
+  })();
+
+  /* ---------- 图3：价格 + 滚动 DD + 状态 ---------- */
+  (function(){
+    var s = setup('realTs', 1000, 560), ctx = s.ctx;
+    var ts = D.ts, n = ts.adj.length;
+    var L=60,R=s.w-20;
+    var pT=30,pB=250, dT=290,dB=505;
+    var X=i=>L+(R-L)*i/(n-1);
+    // y scales
+    var mn=Math.min.apply(null,ts.adj), mx=Math.max.apply(null,ts.adj);
+    var pad=(mx-mn)*0.06; mn-=pad; mx+=pad;
+    var PY=v=>pT+(pB-pT)*(1-(v-mn)/(mx-mn));
+    var dds=ts.dd.filter(function(v){return v!=null;});
+    var dmn=Math.min.apply(null,dds), dmx=Math.max.apply(null,dds);
+    var DY=v=>dT+(dB-dT)*(1-(v-dmn)/(dmx-dmn));
+    // regime bands (bottom panel)
+    var COLORS={1:'rgba(57,197,207,.13)',2:'rgba(240,168,50,.10)',0:'rgba(120,135,155,.05)', '-1':'transparent'};
+    ctx.fillStyle='#0a0f16'; ctx.fillRect(L,dT,R-L,dB-dT);
+    for(var i=0;i<n;i++){
+      var r=String(ts.regime[i]);
+      if(r!=='-1'){ ctx.fillStyle=COLORS[r]; ctx.fillRect(X(i),dT,X(i+1)-X(i)||1,dB-dT); }
+    }
+    // grids + frames
+    ctx.strokeStyle=GRID; ctx.beginPath();
+    for(var g=1;g<4;g++){var y=pT+(pB-pT)*g/4; ctx.moveTo(L,y); ctx.lineTo(R,y);}
+    for(g=1;g<3;g++){y=dT+(dB-dT)*g/3; ctx.moveTo(L,y); ctx.lineTo(R,y);}
+    ctx.stroke();
+    ctx.strokeStyle='#2a3648'; ctx.strokeRect(L,pT,R-L,pB-pT); ctx.strokeRect(L,dT,R-L,dB-dT);
+    // price path
+    var pts=[];
+    for(i=0;i<n;i++) pts.push([X(i),PY(ts.adj[i])]);
+    line(ctx, pts, '#c8d3e0', null, 1.1);
+    // dd line
+    var dp=[], started=false;
+    for(i=0;i<n;i++){
+      if(ts.dd[i]==null){ if(started){line(ctx,dp,CYAN,null,1.6); dp=[]; started=false;} continue; }
+      started=true; dp.push([X(i),DY(ts.dd[i])]);
+    }
+    if(dp.length) line(ctx,dp,CYAN,null,1.6);
+    // labels
+    ctx.fillStyle='#6b7a8f'; ctx.font='12px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(mx.toFixed(0),L-8,pT+4); ctx.fillText(mn.toFixed(0),L-8,pB);
+    ctx.fillText(dmx.toFixed(2),L-8,dT+4); ctx.fillText(dmn.toFixed(2),L-8,dB);
+    ctx.textAlign='left';
+    ctx.fillText('价差复权价格（RB99 30m）', L+8, pT-10);
+    ctx.fillText('滚动 DD（W = '+M.W+' 根 ≈ 20 交易日）', L+8, dT-10);
+    // date ticks ~ every 12th of 96 tick slots -> pick 12 evenly spaced
+    ctx.textAlign='center';
+    for(var k=0;k<=11;k++){
+      var idx=Math.round((n-1)*k/11);
+      ctx.fillText(ts.date[idx].slice(0,7), X(idx), dB+18);
+      ctx.strokeStyle='#2a3648'; ctx.beginPath();
+      ctx.moveTo(X(idx),dT); ctx.lineTo(X(idx),dB); ctx.stroke();
+    }
+    ctx.textAlign='left';
+    // legend
+    ctx.fillStyle='rgba(57,197,207,.4)'; ctx.fillRect(L,dB+34,12,10);
+    ctx.fillStyle='#c8d3e0'; ctx.fillText('震荡 '+(M.regime_counts['1']||0)+' 根', L+18, dB+43);
+    ctx.fillStyle='rgba(240,168,50,.4)'; ctx.fillRect(L+130,dB+34,12,10);
+    ctx.fillStyle='#c8d3e0'; ctx.fillText('趋势 '+(M.regime_counts['2']||0)+' 根', L+148, dB+43);
+    ctx.fillStyle='rgba(120,135,155,.4)'; ctx.fillRect(L+260,dB+34,12,10);
+    ctx.fillStyle='#c8d3e0'; ctx.fillText('过渡 '+(M.regime_counts['0']||0)+' 根', L+278, dB+43);
+  })();
+})();
+</script>
+</body>
+</html>

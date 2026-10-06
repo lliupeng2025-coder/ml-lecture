@@ -1,0 +1,9 @@
+{
+  "name": "ml-oscillation-lecture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "机器学习全链路讲解 —— 重点：震荡行情的分布差异（DD）判断法",
+  "scripts": {
+    "dev": "npx --yes http-server -p 7100 -a 127.0.0.1 -c-1 ."
+  }
+}
